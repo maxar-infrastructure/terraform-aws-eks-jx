@@ -29,13 +29,13 @@ variable "restricted_control_plane_az" {
 variable "cluster_name" {
   description = "Variable to provide your desired name for the cluster. The script will create a random name if this is empty"
   type        = string
-  default     = "jxboot"
+  default     = "jx-boot"
 }
 
 variable "cluster_version" {
   description = "Kubernetes version to use for the EKS cluster."
   type        = string
-  default     = "1.15"
+  default     = "1.16"
 }
 
 // ----------------------------------------------------------------------------
