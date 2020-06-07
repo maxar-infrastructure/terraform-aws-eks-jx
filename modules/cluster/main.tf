@@ -1,9 +1,6 @@
 // ----------------------------------------------------------------------------
 // Query necessary data for the module
 // ----------------------------------------------------------------------------
-data "aws_eks_cluster" "cluster" {
-  name = module.eks.cluster_id
-}
 
 data "aws_eks_cluster_auth" "cluster" {
   name = module.eks.cluster_id
@@ -13,38 +10,32 @@ data "aws_availability_zones" "available" {}
 
 data "aws_caller_identity" "current" {}
 
+data "terraform_remote_state" "vpc" {
+  backend = "s3"
+  config = {
+    region = var.terraform_state_aws_region
+    bucket = var.terraform_state_s3_bucket
+    key    = "${var.aws_region}/${var.vpc_name}/vpc/terraform.tfstate"
+  }
+}
+
+data "aws_subnet" "all" {
+  count = data.terraform_remote_state.vpc.outputs.num_availability_zones
+  id = element(
+    data.terraform_remote_state.vpc.outputs.private_app_subnet_ids,
+    count.index,
+  )
+}
+
 // ----------------------------------------------------------------------------
 // Define K8s cluster configuration
 // ----------------------------------------------------------------------------
 provider "kubernetes" {
-  host                   = data.aws_eks_cluster.cluster.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
   token                  = data.aws_eks_cluster_auth.cluster.token
   load_config_file       = false
   version                = "1.11.1"
-}
-
-// ----------------------------------------------------------------------------
-// Create the AWS VPC
-// See https://github.com/terraform-aws-modules/terraform-aws-vpc
-// ----------------------------------------------------------------------------
-module "vpc" {
-  source               = "terraform-aws-modules/vpc/aws"
-  version              = "2.6.0"
-  name                 = var.vpc_name
-  cidr                 = var.vpc_cidr_block
-  azs                  = data.aws_availability_zones.available.names
-  public_subnets       = var.vpc_subnets
-  enable_dns_hostnames = true
-
-  tags = {
-    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
-  }
-
-  public_subnet_tags = {
-    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                      = "1"
-  }
 }
 
 // ----------------------------------------------------------------------------
@@ -53,12 +44,13 @@ module "vpc" {
 // ----------------------------------------------------------------------------
 module "eks" {
   source           = "terraform-aws-modules/eks/aws"
-  version          = "10.0.0"
+  version          = "12.1.0"
   cluster_name     = var.cluster_name
   cluster_version  = var.cluster_version
-  subnets          = module.vpc.public_subnets
-  vpc_id           = module.vpc.vpc_id
+  subnets          = data.aws_subnet.all.*.id
+  vpc_id           = data.terraform_remote_state.vpc.outputs.vpc_id
   enable_irsa      = true
+  create_eks       = var.create_eks
   worker_groups    = [
     {
       name                 = "worker-group-${var.cluster_name}"
@@ -83,6 +75,10 @@ module "eks" {
   workers_additional_policies = [
     "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
   ]
+
+  cluster_endpoint_private_access       = true
+  cluster_endpoint_public_access        = false
+  cluster_endpoint_private_access_cidrs = ["10.0.0.0/8"]
 }
 
 // ----------------------------------------------------------------------------

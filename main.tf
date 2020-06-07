@@ -11,7 +11,7 @@ terraform {
 // ----------------------------------------------------------------------------
 provider "aws" {
   version = ">= 2.28.1"
-  region  = var.region
+  region  = var.aws_region
 }
 
 provider "local" {
@@ -40,8 +40,6 @@ module "cluster" {
   max_node_count     = var.max_node_count
   node_machine_type  = var.node_machine_type
   vpc_name           = var.vpc_name
-  vpc_subnets        = var.vpc_subnets
-  vpc_cidr_block     = var.vpc_cidr_block
   force_destroy      = var.force_destroy
 }
 
@@ -59,16 +57,16 @@ module "vault" {
 // ----------------------------------------------------------------------------
 // Setup all required Route 53 resources if External DNS / Cert Manager is enabled
 // ----------------------------------------------------------------------------
-module "dns" {
-  source                         = "./modules/dns"
-  apex_domain                    = var.apex_domain
-  subdomain                      = var.subdomain
-  tls_email                      = var.tls_email
-  enable_external_dns            = var.enable_external_dns
-  create_and_configure_subdomain = var.create_and_configure_subdomain
-  enable_tls                     = var.enable_tls
-  production_letsencrypt         = var.production_letsencrypt
-}
+# module "dns" {
+#   source                         = "./modules/dns"
+#   apex_domain                    = var.apex_domain
+#   subdomain                      = var.subdomain
+#   tls_email                      = var.tls_email
+#   enable_external_dns            = var.enable_external_dns
+#   create_and_configure_subdomain = var.create_and_configure_subdomain
+#   enable_tls                     = var.enable_tls
+#   production_letsencrypt         = var.production_letsencrypt
+# }
 
 // ----------------------------------------------------------------------------
 // Let's generate jx-requirements.yml 
@@ -80,7 +78,7 @@ resource "local_file" "jx-requirements" {
   ]
   content = templatefile("${path.module}/jx-requirements.yml.tpl", {
     cluster_name               = local.cluster_name
-    region                     = var.region
+    region                     = var.aws_region
     enable_logs_storage        = var.enable_logs_storage
     logs_storage_bucket        = length(module.cluster.logs_jenkins_x) > 0 ? module.cluster.logs_jenkins_x[0] : ""
     enable_reports_storage     = var.enable_reports_storage
@@ -92,7 +90,7 @@ resource "local_file" "jx-requirements" {
     vault_dynamodb_table       = module.vault.vault_dynamodb_table
     vault_user                 = var.vault_user
     enable_external_dns        = var.enable_external_dns
-    domain                     = module.dns.domain
+    domain                     = var.domain
     enable_tls                 = var.enable_tls
     tls_email                  = var.tls_email
     use_production_letsencrypt = var.production_letsencrypt

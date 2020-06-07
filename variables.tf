@@ -1,16 +1,35 @@
 // ----------------------------------------------------------------------------
 // Required Variables
 // ----------------------------------------------------------------------------
-variable "region" {
+variable "aws_region" {
   description = "The region to create the resources into"
   type        = string
   default     = "us-east-1"
 }
 
+variable "terraform_state_s3_bucket" {
+  type = string
+  default = "dg-commercial-itdev-01-terraform-state"
+}
+
+variable "terraform_state_aws_region" {
+  type = string
+  default = "us-east-1"
+}
+
+variable "restricted_control_plane_az" {
+  description = "Some availability zones in specific regions are known to lack support for EKS control planes. This list is used to mark those AZs where the control plane should not be deployed into."
+  type        = list(string)
+
+  default = [
+    "us-east-1e",
+  ]
+}
+
 variable "cluster_name" {
   description = "Variable to provide your desired name for the cluster. The script will create a random name if this is empty"
   type        = string
-  default     = ""
+  default     = "jxboot"
 }
 
 variable "cluster_version" {
@@ -23,7 +42,7 @@ variable "cluster_version" {
 variable "vault_user" {
   description = "The AWS IAM Username whose credentials will be used to authenticate the Vault pods against AWS"
   type        = string
-  default     = ""
+  default     = "svc_eks_thundercats"
 }
 
 // ----------------------------------------------------------------------------
@@ -59,20 +78,20 @@ variable "node_machine_type" {
 variable "vpc_name" {
   description = "The name of the VPC to be created for the cluster"
   type        = string
-  default     = "tf-vpc-eks"
+  default     = "itdev"
 }
 
-variable "vpc_subnets" {
-  description = "The subnet CIDR block to use in the created VPC"
-  type        = list(string)
-  default     = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-}
+# variable "vpc_subnets" {
+#   description = "The subnet CIDR block to use in the created VPC"
+#   type        = list(string)
+#   default     = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+# }
 
-variable "vpc_cidr_block" {
-  description = "The vpc CIDR block"
-  type        = string
-  default     = "10.0.0.0/16"
-}
+# variable "vpc_cidr_block" {
+#   description = "The vpc CIDR block"
+#   type        = string
+#   default     = "10.0.0.0/16"
+# }
 
 // ----------------------------------------------------------------------------
 // External DNS Variables
@@ -81,6 +100,12 @@ variable "apex_domain" {
   description = "The main domain to either use directly or to configure a subdomain from"
   type        = string
   default     = ""
+}
+
+variable "domain" {
+  description = "The main domain to either use directly or to configure a subdomain from"
+  type        = string
+  default     = "jxboot.dg-commercial-itdev-01.satcloud.us"
 }
 
 variable "subdomain" {
